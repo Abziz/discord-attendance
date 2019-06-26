@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node bot/dist/index.js",
     "dev": "nodemon bot/src/index.ts",
+    "test:lint":"tslint -p .",
     "build": "tsc -p ."
   },
   "repository": {
@@ -21,6 +22,7 @@
   "homepage": "https://github.com/Abziz/discord-attendance#readme",
   "devDependencies": {
     "@types/dotenv": "^6.1.1",
+    "@types/mongoose": "^5.5.6",
     "@types/node": "^12.0.10",
     "nodemon": "^1.19.1",
     "ts-node": "^8.3.0",
@@ -29,6 +31,7 @@
   },
   "dependencies": {
     "discord.js": "^11.5.1",
-    "dotenv": "^8.0.0"
+    "dotenv": "^8.0.0",
+    "mongoose": "^5.6.1"
   }
 }
