@@ -4,22 +4,22 @@ import mongoose from 'mongoose';
 
 dotenv.config();
 
-connect().then( (db) => {
-    console.log("connected");
+connect().then((db) => {
+  console.log('connected');
 });
 
 function start() {
-    const client = new Discord.Client();
-    client.on('ready', async () => {
-        console.log(`logged in as ${client.user.tag}`);
-    });
-    client.login(process.env.DISCORD_TOKEN);
+  const client = new Discord.Client();
+  client.on('ready', async () => {
+    console.log(`logged in as ${client.user.tag}`);
+  });
+  client.login(process.env.DISCORD_TOKEN);
 }
 
 function connect() {
-    mongoose.connection
-    .on('connect', () => {console.log('connected'); })
+  mongoose.connection
+    .on('connect', () => { console.log('connected'); })
     .on('error', console.error)
     .once('open', start);
-    return mongoose.connect(process.env.MONGODB_URI!, { useNewUrlParser: true});
+  return mongoose.connect(process.env.MONGODB_URI!, { useNewUrlParser: true });
 }
