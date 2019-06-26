@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node bot/dist/index.js",
     "dev": "nodemon bot/src/index.ts",
-    "test:lint":"tslint -p .",
+    "test:lint": "tslint -p .",
     "build": "tsc -p ."
   },
   "repository": {
