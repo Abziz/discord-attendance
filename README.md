@@ -1,2 +1,2 @@
 # discord-attendance
-discord bot that checks for attendance
+discord bot that gathers attendance statistics
