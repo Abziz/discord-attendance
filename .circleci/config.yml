@@ -24,6 +24,13 @@ jobs:
     working_directory: ~/discord-attendance
     steps:
       - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run: npm install
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
       - run: npm run test:lint
 
 workflows:
