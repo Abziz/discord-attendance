@@ -23,6 +23,7 @@ jobs:
     executor: default
     working_directory: ~/discord-attendance
     steps:
+      - checkout
       - run: npm run test:lint
 
 workflows:
