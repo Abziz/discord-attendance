@@ -23,6 +23,7 @@
   "devDependencies": {
     "@types/dotenv": "^6.1.1",
     "@types/mongoose": "^5.5.6",
+    "@types/mongoose-sequence": "^3.0.3",
     "@types/node": "^12.0.10",
     "nodemon": "^1.19.1",
     "ts-node": "^8.3.0",
@@ -33,6 +34,7 @@
   "dependencies": {
     "discord.js": "^11.5.1",
     "dotenv": "^8.0.0",
-    "mongoose": "^5.6.1"
+    "mongoose": "^5.6.1",
+    "mongoose-sequence": "^5.1.0"
   }
 }
