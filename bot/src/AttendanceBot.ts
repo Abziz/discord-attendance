@@ -115,7 +115,7 @@ export class AttendanceBot extends discordJs.Client {
       timestamp: now,
       channelId: mem.voiceChannel ? mem.voiceChannel.id :undefined,
       channelName: mem.voiceChannel ? mem.voiceChannel.name : undefined,
-      voiceState:this.memberVoiceState(member),
+      voiceState:this.memberVoiceState(mem),
     }));
   }
 
