@@ -2,6 +2,17 @@ import discordJs, { GuildMember, Message, TextChannel, Guild } from 'discord.js'
 import { UserSnapshots, UserSnapshot, VoiceState } from './models/UserSnapshot';
 const ROLE_TO_TRACK = '330466103979540480';
 const COMMANDS_TEXT_CHANNEL = '594662666853810177';
+const MEMBERS_WHITE_LIST = [
+  '180644941398016010', // Jendalar
+  '166243972660854784', // Leopard
+  '166212864191758337', // merstik
+  '166205132499976192', // wag
+  '161245900365103104', // Abziz
+  '159300491367546880', // Izzy
+  '161159040221577216', // DLF,
+  '155359990884990976', // RealGigex,
+];
+
 export class AttendanceBot extends discordJs.Client {
   currentGuild?:Guild;
   constructor(token: string) {
@@ -12,8 +23,19 @@ export class AttendanceBot extends discordJs.Client {
   private takeInitialSnapshot() {
     const guild = this.guilds.first();
     const role = guild.roles.get(ROLE_TO_TRACK)!;
-    role.members.filter(member => !member.user.bot).forEach(async (member) => {
-      await UserSnapshots.create(this.snapshotFromMember(member));
+    role.members
+    .filter(member => !member.user.bot)
+    .filter(this.isInTrackedRole)
+    .filter(this.isWhiteListed)
+    .forEach(async (member) => {
+      await UserSnapshots.create({
+        userId:member.user.id,
+        username: member.user.username,
+        timestamp: new Date(),
+        channelId: member.voiceChannel ? member.voiceChannel.id :undefined,
+        channelName: member.voiceChannel ? member.voiceChannel.name : undefined,
+        voiceState:this.memberVoiceState(member),
+      });
     });
   }
   private work(): void {
@@ -22,85 +44,82 @@ export class AttendanceBot extends discordJs.Client {
     this.on('voiceStateUpdate', this.onVoiceStateUpdate);
     this.on('message', this.handleCommands);
   }
-  private async handleCommands(message: Message) {
-    if (!(message.channel instanceof TextChannel)) return;
-    if (message.channel.id !== COMMANDS_TEXT_CHANNEL) return;
-    if (!message.member) return;
-    if (message.author.bot) return;
-    if (message.content.indexOf('!') !== 0) return;
-    if (!message.member.roles.keyArray().includes(ROLE_TO_TRACK)) return;
-    const args = message.content.slice(1).trim().split(/ +/g);
+  private async handleCommands({ channel, member, author, content }: Message) {
+    if (!(channel instanceof TextChannel)
+      || channel.id !== COMMANDS_TEXT_CHANNEL
+      || !member
+      || author.bot
+      || content.indexOf('!') !== 0
+      || !this.isInTrackedRole(member)
+      || !this.isWhiteListed(member)) {
+      return;
+    }
+    const args = content.slice(1).trim().split(/ +/g);
     const command = args.shift()!.toLowerCase();
     if (command === 'everyone') {
       const ranks = await this.rankings();
       ranks.sort((a, b) => b.totalSeconds - a.totalSeconds);
       const lines = ranks.map((rank, i) => {
-        const place = i + 1;
-        const username = `${i === 0 ? '👑' :'' } **${rank.username}**`;
+        const emoji = i === ranks.length - 1 ? '😭' :'🍔';
+        const name = `**${rank.username}**`;
         const score = scoreFromSeconds(rank.totalSeconds);
-        return `${place}.${username} ${score}`;
+        return `${emoji} ${name} ${score}`;
       });
-      await message.channel.send(lines.join('\n'));
+      await channel.send(lines.join('\n'));
     }
     if (command === 'me') {
-      const userId = message.author.id;
+      const userId = author.id;
       const ranks = await this.rankings();
       ranks.sort((a, b) => b.totalSeconds - a.totalSeconds);
       const rank = ranks.findIndex(rank => rank.userId === userId);
       const { username, totalSeconds } = ranks[rank];
+      const emoji = rank === ranks.length - 1 ? '😭' :'🍔';
+      const name = `**${username}**`;
       const score = scoreFromSeconds(totalSeconds);
-      await message.channel.send(`${rank + 1}.${rank === 0 ? '👑' :''} **${username}**\t${score}`);
+      await channel.send(`${emoji} ${name} ${score}`);
     }
-    if (command === 'attendance') {
-
+    if (command === 'help' || command === 'commands') {
       let response = '\n👀 Commands for attendance:';
       response += '\n**!me** - show my points';
       response += "\n**!everyone** - show everyone's points";
-      await message.channel.send(`${response}`);
-    }
-    if (command === 'admin') {
-      if (message.author.id === '161245900365103104') {
-        await message.channel.send('You are now bot administrator');
-      }else if (message.author.username === 'Izzy') {
-
-        await message.channel.sendEmbed({
-          description:'LOL',
-          image:{
-            url:'https://media.giphy.com/media/2S2Z5gQZAEM7K/giphy.gif',
-          },
-        });
-      } else {
-        await message.channel.sendEmbed({
-          description:'LOL',
-          image:{
-            url:'https://i.imgur.com/eibibZy.gif?noredirect',
-          },
-        });
-      }
+      await channel.send(`${response}`);
     }
   }
   private async onVoiceStateUpdate(prev: GuildMember, curr: GuildMember) {
-    if (prev.roles.keyArray().includes(ROLE_TO_TRACK)) {
-      try {
-        await UserSnapshots.create(this.snapshotFromMember(curr));
-      }catch (error) {
-        console.log(error);
-      }
+    if (!this.isInTrackedRole(curr) || !this.isWhiteListed(curr)) {
+      return;
+    }
+    try {
+      const snapshots = this.snapshotsFromMember(curr);
+      await UserSnapshots.create(snapshots);
+    }catch (error) {
+      console.error(error);
     }
   }
 
-  private snapshotFromMember(member: GuildMember): UserSnapshot {
-    return {
-      userId: member.user.id,
-      username: member.user.username,
-      channelId: (member.voiceChannel) ? member.voiceChannel.id : undefined,
-      channelName: (member.voiceChannel) ? member.voiceChannel.name : undefined,
-      timestamp: new Date(),
-      voiceState: this.memberVoiceState(member),
-    };
+  private snapshotsFromMember(member: GuildMember): UserSnapshot[] {
+    const members:GuildMember[] = [];
+    if (member.voiceChannel) {
+      member.voiceChannel.members
+      .filter(mem => !mem.user.bot)
+      .filter(this.isInTrackedRole)
+      .filter(this.isWhiteListed)
+      .forEach((mem) => { members.push(mem); });
+    }else {
+      members.push(member);
+    }
+    const now = new Date();
+    return members.map<UserSnapshot>(mem => ({
+      userId:mem.user.id,
+      username: mem.user.username,
+      timestamp: now,
+      channelId: mem.voiceChannel ? mem.voiceChannel.id :undefined,
+      channelName: mem.voiceChannel ? mem.voiceChannel.name : undefined,
+      voiceState:this.memberVoiceState(member),
+    }));
   }
 
-  private memberVoiceState(member: GuildMember): VoiceState {
+  private memberVoiceState(member: GuildMember) : VoiceState {
     if (!member.voiceChannel) return 'INACTIVE';
     if (member.voiceChannel.id === this.currentGuild!.afkChannelID) return 'INACTIVE';
     if (member.deaf) return 'INACTIVE';
@@ -108,7 +127,6 @@ export class AttendanceBot extends discordJs.Client {
     if (member.mute) return 'MUTED';
     return 'ACTIVE';
   }
-
   private async rankings(query: { userId: string } | {} = {}) {
     const data: UserSnapshot[] = await UserSnapshots.find(query).sort({ _id: 1 }).lean();
     data.forEach(snap => snap.timestamp = new Date(snap.timestamp));
@@ -141,6 +159,12 @@ export class AttendanceBot extends discordJs.Client {
     });
     return ranks;
   }
+  private isWhiteListed(member:GuildMember):boolean {
+    return MEMBERS_WHITE_LIST.includes(member.user.id);
+  }
+  private isInTrackedRole(member:GuildMember):boolean {
+    return member.roles.has(ROLE_TO_TRACK);
+  }
 }
 
 export interface ActivityResult {
@@ -148,7 +172,6 @@ export interface ActivityResult {
   username: string;
   totalSeconds: number;
 }
-
 function scoreFromSeconds(time: number): string {
-  return `\t${Math.floor(time / 60)} points`;
+  return `**${Math.floor(time / 60)}** points`;
 }
