@@ -60,7 +60,7 @@ export class AttendanceBot extends discordJs.Client {
       const ranks = await this.rankings();
       ranks.sort((a, b) => b.totalSeconds - a.totalSeconds);
       const lines = ranks.map((rank, i) => {
-        const emoji = i === ranks.length - 1 ? '😭' :'🍔';
+        const emoji = rank.totalSeconds === ranks[ranks.length - 1].totalSeconds ? '😭' :'🍔';
         const name = `**${rank.username}**`;
         const score = scoreFromSeconds(rank.totalSeconds);
         return `${emoji} ${name} ${score}`;
@@ -73,7 +73,7 @@ export class AttendanceBot extends discordJs.Client {
       ranks.sort((a, b) => b.totalSeconds - a.totalSeconds);
       const rank = ranks.findIndex(rank => rank.userId === userId);
       const { username, totalSeconds } = ranks[rank];
-      const emoji = rank === ranks.length - 1 ? '😭' :'🍔';
+      const emoji = totalSeconds === ranks[ranks.length - 1].totalSeconds ? '😭' :'🍔';
       const name = `**${username}**`;
       const score = scoreFromSeconds(totalSeconds);
       await channel.send(`${emoji} ${name} ${score}`);
